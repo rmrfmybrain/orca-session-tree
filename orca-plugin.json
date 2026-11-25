@@ -1,0 +1,67 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stablyai/orca/main/docs/schemas/plugins/orca-plugin.v2.schema.json",
+  "manifestVersion": 2,
+  "id": "session-tree",
+  "name": "Session Tree",
+  "version": "1.0.0",
+  "description": "Every open agent session in one tree by project, native chats included: what is working, what waits for you and what finished unread on top. Start a chat with or without a worktree from + beside a project; right-click to mark read, close or remove.",
+  "author": { "name": "rmrfmybrain", "url": "https://github.com/rmrfmybrain" },
+  "repository": "https://github.com/rmrfmybrain/orca-session-tree",
+  "license": "MIT",
+  "icon": "assets/icon.png",
+  "cover": {
+    "path": "assets/cover.png",
+    "alt": "Session Tree's icon and name beside the panel, listing agent sessions by project"
+  },
+  "screenshots": [
+    {
+      "path": "assets/screenshot-dark.png",
+      "alt": "Three Session Tree panels in the dark theme: the project tree, the Recent list and the new chat menu",
+      "caption": "Projects, Recent and the + menu"
+    },
+    {
+      "path": "assets/screenshot-light.png",
+      "alt": "The same three panels in the light theme",
+      "caption": "Light theme"
+    },
+    {
+      "path": "assets/screenshot-menu.png",
+      "alt": "The right-click menu on a session, the confirmation before deleting a worktree, and the Recent list in Japanese",
+      "caption": "Right-click menu and other languages"
+    }
+  ],
+  "engines": {
+    "orca": ">=1.4.274"
+  },
+  "execution": "trusted-worker",
+  "pluginApi": 1,
+  "main": "src/worker.ts",
+  "contributes": {
+    "panels": [
+      {
+        "id": "session-tree",
+        "title": "Session Tree",
+        "icon": "layers",
+        "entry": "src/frame.ts",
+        "ui": "html"
+      }
+    ],
+    "events": [
+      { "on": "agent.status.changed" },
+      { "on": "workspace.created" },
+      { "on": "workspace.removed" }
+    ],
+    "hooks": [{ "event": "workspace.create.before" }],
+    "commands": [
+      { "id": "chat.new", "title": "New chat here, no worktree", "when": "workspace" },
+      { "id": "worktrees.toggle", "title": "Ban or allow new worktrees in this project", "when": "workspace" }
+    ],
+    "keybindings": [{ "command": "chat.new", "key": "Mod+Alt+N", "when": "workspace" }]
+  },
+  "capabilities": [
+    { "kind": "workspace:read" },
+    { "kind": "workspace:write" },
+    { "kind": "agent:read" },
+    { "kind": "storage:own" }
+  ]
+}
