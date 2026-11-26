@@ -75,6 +75,11 @@ test('+ on a Git project offers a chat without a worktree and one in a new, name
   // Chat or CLI, on top of the menu: the chosen one is pressed.
   assert.ok(open.includes('class="seg on" aria-pressed="true" data-act="surface" data-key="chat"'))
   assert.ok(html({ menu: 'p-shop', surface: 'terminal' }).includes('class="seg on" aria-pressed="true" data-act="surface" data-key="terminal"'))
+  // Where Session Tree blocks new worktrees, + offers only the chat in the main checkout.
+  const blocked = snapshot()
+  blocked.targets = blocked.targets.map((t) => (t.key === 'p-shop' ? { ...t, worktreesBlocked: true } : t))
+  const noWorktree = html({ menu: 'p-shop' }, blocked)
+  assert.ok(noWorktree.includes('Without a worktree, in the main checkout') && !noWorktree.includes('In a new worktree'))
   // A group or a folder has no worktrees to offer.
   const group = html({ menu: 'folder-workspace:g1' })
   assert.ok(group.includes('In the group'))

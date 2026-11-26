@@ -1,6 +1,6 @@
-# Session Tree
+# Session Tree + No Worktree Mode
 
-Every agent session open in [Orca](https://github.com/stablyai/orca), in one tree by project, in the right sidebar.
+Chats with or without a worktree, and every agent session open in [Orca](https://github.com/stablyai/orca), in one tree by project, in the right sidebar.
 On top: what is working, what waits for you and what finished while you were away.
 Below: your projects, their worktrees and the sessions in each.
 Start a chat from the `+` beside a project, with or without a worktree.
@@ -29,7 +29,16 @@ Native Orca chats are included: the panel lists what Orca's own sidebar lists.
 
 The agent you pick last is remembered. **New chat here, no worktree** (`Mod+Alt+N`) starts one in the current project with that agent.
 
-If you want no new worktrees in a project at all, run **Ban or allow new worktrees in this project** from the command palette. Orca then refuses to create one there until you run it again.
+## No Worktree Mode
+
+Worktrees stay available. Use them where you want them, skip them where you don't:
+
+| Setting (Settings → Plugins → Session Tree) | New worktrees | **Ban or allow new worktrees in this project** |
+| --- | --- | --- |
+| **Off** (default) | allowed | bans them in the open project |
+| **On** | refused in every project | allows them in the open project |
+
+The block covers every way Orca makes a worktree: the sidebar, the new-workspace composer, the CLI and automations. Orca refuses the request and shows why; nothing is created on disk. Folder workspaces always pass. Where worktrees are blocked, `+` offers only the chat in the main checkout.
 
 ## Right-click
 
@@ -74,7 +83,7 @@ Orca shows what it asks for before you approve it:
 
 - read projects, workspaces and agent status;
 - open and hide workspaces and projects;
-- its own storage.
+- its own storage and settings.
 
 Orca's plugin API does not list native chats yet, so the worker reads sessions through **Orca's own CLI**: the `orca` binary shipped inside the running Orca app, never one found on `PATH`. It is run with fixed arguments and no shell:
 
@@ -96,7 +105,7 @@ The plugin stores only its own settings:
 - the view;
 - the last agent;
 - Chat or CLI;
-- projects with new worktrees banned.
+- No Worktree Mode, and the projects you banned or allowed with the command.
 
 **Platforms.** Tested on macOS.
 The CLI paths for Linux (`resources/bin/orca-ide`) and Windows (`resources\bin\orca.exe`) are set but not yet tested.

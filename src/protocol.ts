@@ -5,6 +5,8 @@ import type { Snapshot } from './model'
 export const NEW_AGENT_KEY = 'st.newAgent'
 /** Project ids where the worker's hook refuses new worktrees. */
 export const NO_WORKTREES_KEY = 'st.noWorktrees'
+/** Projects still allowed new worktrees while No Worktree Mode is on. */
+export const WORKTREES_ALLOWED_KEY = 'st.worktreesAllowed'
 /** How a new agent opens: Orca's chat or its CLI in a terminal. */
 export const SURFACE_KEY = 'st.surface'
 export type Surface = 'chat' | 'terminal'

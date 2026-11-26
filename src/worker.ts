@@ -5,7 +5,7 @@
 import { execFile } from 'node:child_process'
 import type { OrcaWorkerApi } from 'orca/worker'
 import { agentsFromPs, canRemove, currentTarget, targetsFromPs, type InstalledAgent, type PsWorktree, type Snapshot, type Target } from './model'
-import { NEW_AGENT_KEY, NO_WORKTREES_KEY, SURFACE_KEY, type ActionResult, type Surface } from './protocol'
+import { NEW_AGENT_KEY, NO_WORKTREES_KEY, SURFACE_KEY, WORKTREES_ALLOWED_KEY, type ActionResult, type Surface } from './protocol'
 
 const CHANGE_DEBOUNCE_MS = 1200
 const CLI_TIMEOUT_MS = 20_000
@@ -14,7 +14,8 @@ const SELECTOR = /^(identity|id|folder):[^\s]+$/
 const TERMINAL = /^term_[\w-]+$/
 const PROJECT = /^[\w-]+$/
 // The worker does not know Orca's language; these reach Orca's own error and command toasts.
-const WORKTREES_BLOCKED = 'New worktrees are blocked in this project by Session Tree. Allow them with "Ban or allow new worktrees in this project".'
+const WORKTREES_BLOCKED =
+  'Session Tree blocks new worktrees in this project. Allow them here with "Ban or allow new worktrees in this project", or change No Worktree Mode in Settings → Plugins.'
 const NO_PROJECT = 'Open a project first.'
 
 function failed(error: unknown): ActionResult {
@@ -79,8 +80,29 @@ async function readTargets(orca: OrcaWorkerApi): Promise<{ worktrees: PsWorktree
 }
 
 export async function loadLive(orca: OrcaWorkerApi): Promise<Snapshot> {
-  const [{ worktrees, targets }, agents] = await Promise.all([readTargets(orca), installedAgents()])
-  return { agents: agentsFromPs(worktrees), targets, currentTarget: currentTarget(worktrees), installed: agents }
+  const [{ worktrees, targets }, agents, blocked] = await Promise.all([readTargets(orca), installedAgents(), worktreePolicy(orca)])
+  return {
+    agents: agentsFromPs(worktrees),
+    targets: targets.map((t) => (t.kind === 'git' ? { ...t, worktreesBlocked: blocked(t.key) } : t)),
+    currentTarget: currentTarget(worktrees),
+    installed: agents
+  }
+}
+
+const ids = (value: unknown): string[] => (Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [])
+
+/**
+ * Which projects refuse new worktrees. No Worktree Mode off: only those banned with the command;
+ * on: all but those allowed with it.
+ */
+async function worktreePolicy(orca: OrcaWorkerApi): Promise<(projectId: string) => boolean> {
+  const [mode, banned, allowed] = await Promise.all([
+    orca.settings.get('worktrees'),
+    orca.storage.get(NO_WORKTREES_KEY),
+    orca.storage.get(WORKTREES_ALLOWED_KEY)
+  ])
+  if (mode === 'block') return (id) => !ids(allowed).includes(id)
+  return (id) => ids(banned).includes(id)
 }
 
 /** A terminal agent's tab when Orca has one, else its workspace (a native chat has no tab id). */
@@ -208,16 +230,21 @@ export async function newChatHere(orca: OrcaWorkerApi): Promise<string | undefin
   return result.ok ? undefined : (result.message ?? result.code)
 }
 
-/** Command: bans new worktrees in the open project, or allows them again. */
+/**
+ * Command: flips new worktrees in the open project. With No Worktree Mode off it bans them there;
+ * with it on it lets them through there.
+ */
 export async function toggleWorktrees(orca: OrcaWorkerApi): Promise<string> {
   const { worktrees, targets } = await readTargets(orca)
   const target = targets.find((t) => t.key === currentTarget(worktrees) && t.kind === 'git')
   if (!target) return NO_PROJECT
-  const stored = await orca.storage.get(NO_WORKTREES_KEY)
-  const banned = Array.isArray(stored) ? stored.filter((id): id is string => typeof id === 'string') : []
-  const ban = !banned.includes(target.key)
-  await orca.storage.set(NO_WORKTREES_KEY, ban ? [...banned, target.key] : banned.filter((id) => id !== target.key))
-  return ban ? `${target.name}: new worktrees blocked.` : `${target.name}: new worktrees allowed.`
+  const modeOn = (await orca.settings.get('worktrees')) === 'block'
+  const key = modeOn ? WORKTREES_ALLOWED_KEY : NO_WORKTREES_KEY
+  const list = ids(await orca.storage.get(key))
+  const listed = list.includes(target.key)
+  await orca.storage.set(key, listed ? list.filter((id) => id !== target.key) : [...list, target.key])
+  // Mode on: a listed project was allowed and now is not. Mode off: a listed one was banned.
+  return modeOn === listed ? `${target.name}: new worktrees blocked.` : `${target.name}: new worktrees allowed.`
 }
 
 export default function activate(orca: OrcaWorkerApi): void {
@@ -233,8 +260,7 @@ export default function activate(orca: OrcaWorkerApi): void {
   orca.commands.register('worktrees.toggle', async () => toggleWorktrees(orca))
   // Folder workspaces are never worktrees, so they always pass.
   orca.hooks.on('workspace.create.before', async (event) => {
-    const banned = event.kind === 'worktree' ? await orca.storage.get(NO_WORKTREES_KEY) : null
-    if (Array.isArray(banned) && banned.includes(event.projectId)) {
+    if (event.kind === 'worktree' && (await worktreePolicy(orca))(event.projectId)) {
       return { deny: WORKTREES_BLOCKED }
     }
   })

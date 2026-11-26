@@ -1,7 +1,7 @@
 import { assert, mockHost, mountWorker, test } from 'orca/testing'
 import * as main from './worker'
 import { fakeOrca, folderProjects, hostResults, ps } from './fixtures'
-import { agentsFromPs, currentTarget, projectTree, targetsFromPs } from './model'
+import { agentsFromPs, currentTarget, projectTree, targetsFromPs, type Snapshot } from './model'
 import { strings } from './i18n'
 
 test('Orca’s agent table: top-level agents, newest first, with where, tab and workspace', () => {
@@ -170,6 +170,31 @@ test('commands: a chat where you are; the worktree ban flips for the open projec
   assert.equal((await fire('folder', 'p-shop')).kind, 'continue')
   assert.match(String(await worker.command('worktrees.toggle')), /allowed/)
   assert.equal((await fire('worktree', 'p-shop')).kind, 'continue')
+  assert.deepEqual(worker.refusals, [])
+  await worker.deactivate()
+})
+
+test('No Worktree Mode: new worktrees refused everywhere but the projects you allow; + stops offering them', async () => {
+  main.setOrcaRunner(fakeOrca())
+  const host = mockHost({ results: hostResults(), settings: { worktrees: 'block' }, storage: { 'st.noWorktrees': ['p-other'] } })
+  const worker = await mountWorker(main, { host })
+  const fire = (kind: 'worktree' | 'folder', projectId: string) =>
+    worker.hooks.fire('workspace.create.before', { kind, projectId, name: 'x' })
+  assert.equal((await fire('worktree', 'p-shop')).kind, 'deny')
+  assert.equal((await fire('worktree', 'p-anything')).kind, 'deny')
+  assert.equal((await fire('folder', 'p-shop')).kind, 'continue')
+  const shop = async () => ((await worker.request('live.load')) as Snapshot).targets.find((t) => t.key === 'p-shop')
+  assert.equal((await shop())?.worktreesBlocked, true)
+
+  // The command now makes an exception for the open project, and flips it back.
+  assert.match(String(await worker.command('worktrees.toggle')), /webshop: new worktrees allowed/)
+  assert.deepEqual(host.data().storage['st.worktreesAllowed'], ['p-shop'])
+  assert.equal((await fire('worktree', 'p-shop')).kind, 'continue')
+  assert.equal((await shop())?.worktreesBlocked, false)
+  assert.match(String(await worker.command('worktrees.toggle')), /webshop: new worktrees blocked/)
+  assert.equal((await fire('worktree', 'p-shop')).kind, 'deny')
+  // Bans made with the mode off stay stored and apply again when it is off.
+  assert.deepEqual(host.data().storage['st.noWorktrees'], ['p-other'])
   assert.deepEqual(worker.refusals, [])
   await worker.deactivate()
 })

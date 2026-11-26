@@ -59,6 +59,8 @@ export interface Target {
   /** `--worktree` for `orca agent launch`. */
   selector: string
   lastActivityAt: number
+  /** Session Tree refuses new worktrees here, so + offers none. */
+  worktreesBlocked?: boolean
 }
 
 export interface InstalledAgent {

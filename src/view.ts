@@ -203,7 +203,7 @@ export function buildView(current: Snapshot | null, ui: ViewState, now: number, 
       `<div class="openas"><span class="label">${esc(s.openAs)}</span>` +
       `<div class="segs" role="group" aria-label="${esc(s.openAs)}">${surface('chat', s.surfaceChat)}${surface('terminal', s.surfaceCli)}</div></div>`
     const worktree =
-      target.kind === 'git'
+      target.kind === 'git' && !target.worktreesBlocked
         ? `<div class="label">${esc(s.inNewWorktree)}</div>` +
           `<input class="name" placeholder="${esc(s.worktreeName)}" value="${esc(ui.worktreeName)}" maxlength="80"${attr({ focus: `name:${target.key}`, key: target.key })}>` +
           chips('worktree', ui.busy || ui.worktreeName.trim() === '')

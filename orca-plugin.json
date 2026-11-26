@@ -2,9 +2,9 @@
   "$schema": "https://raw.githubusercontent.com/stablyai/orca/main/docs/schemas/plugins/orca-plugin.v2.schema.json",
   "manifestVersion": 2,
   "id": "session-tree",
-  "name": "Session Tree",
-  "version": "1.0.1",
-  "description": "Every open agent session in one tree by project, native chats included: what is working, what waits for you and what finished unread on top. Start a chat with or without a worktree from + beside a project; right-click to mark read, close or remove.",
+  "name": "Session Tree + No Worktree Mode",
+  "version": "1.1.0",
+  "description": "Chats with or without a worktree, and every open agent session in one tree by project, native chats included: what is working, what waits for you, what finished unread. No Worktree Mode blocks new worktrees in every project or only chosen ones. Right-click to mark read, close or remove.",
   "author": { "name": "rmrfmybrain", "url": "https://github.com/rmrfmybrain" },
   "repository": "https://github.com/rmrfmybrain/orca-session-tree",
   "license": "MIT",
@@ -56,12 +56,24 @@
       { "id": "chat.new", "title": "New chat here, no worktree", "when": "workspace" },
       { "id": "worktrees.toggle", "title": "Ban or allow new worktrees in this project", "when": "workspace" }
     ],
-    "keybindings": [{ "command": "chat.new", "key": "Mod+Alt+N", "when": "workspace" }]
+    "keybindings": [{ "command": "chat.new", "key": "Mod+Alt+N", "when": "workspace" }],
+    "settings": [
+      {
+        "key": "worktrees",
+        "title": "No Worktree Mode",
+        "description": "On: Orca creates no new worktrees anywhere (sidebar, composer, CLI, automations) and chats start in each project's main checkout. In either mode, \"Ban or allow new worktrees in this project\" makes an exception for the open project.",
+        "type": "string",
+        "default": "allow",
+        "enum": ["allow", "block"],
+        "enumLabels": ["Off: worktrees allowed, ban single projects", "On: worktrees blocked, allow single projects"]
+      }
+    ]
   },
   "capabilities": [
     { "kind": "workspace:read" },
     { "kind": "workspace:write" },
     { "kind": "agent:read" },
-    { "kind": "storage:own" }
+    { "kind": "storage:own" },
+    { "kind": "settings:own" }
   ]
 }
