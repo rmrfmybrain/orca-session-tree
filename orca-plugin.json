@@ -3,7 +3,7 @@
   "manifestVersion": 2,
   "id": "session-tree",
   "name": "Session Tree",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Every open agent session in one tree by project, native chats included: what is working, what waits for you and what finished unread on top. Start a chat with or without a worktree from + beside a project; right-click to mark read, close or remove.",
   "author": { "name": "rmrfmybrain", "url": "https://github.com/rmrfmybrain" },
   "repository": "https://github.com/rmrfmybrain/orca-session-tree",

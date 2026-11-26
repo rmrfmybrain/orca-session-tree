@@ -36,6 +36,8 @@ const ui: ViewState = {
 }
 /** Where the right-click menu opens. */
 let ctxAt = { x: 0, y: 0 }
+/** The left click that dismissed the menu does nothing else, as in Orca's own menus. */
+let swallowClick = false
 let last = { key: '', at: 0 }
 let loading = false
 let again = false
@@ -128,13 +130,37 @@ function startWorktree(repo: string, agent: string): void {
   void act(() => orca.plugin.request('worktree.start', { repo, name, agent, surface: ui.surface }))
 }
 
+/** Closes the right-click menu without redrawing the rows under the pointer. */
+function closeCtx(): void {
+  if (!ui.ctx) return
+  ui.ctx = null
+  root.querySelector('.ctx')?.remove()
+}
+
+// The menu closes on a press anywhere outside it (empty space below the list included), when
+// focus leaves the panel for the rest of Orca, and when the panel scrolls or resizes.
+document.addEventListener(
+  'pointerdown',
+  (event) => {
+    swallowClick = false
+    if (!ui.ctx || (event.target instanceof Element && event.target.closest('.ctx'))) return
+    closeCtx()
+    swallowClick = event.button === 0
+  },
+  true
+)
+window.addEventListener('blur', closeCtx)
+window.addEventListener('resize', closeCtx)
+document.addEventListener('scroll', closeCtx, true)
+
 root.addEventListener('click', (event) => {
   const target = event.target as HTMLElement
-  // A click anywhere else first closes the right-click menu.
-  if (ui.ctx && !target.closest('.ctx')) {
-    ui.ctx = null
-    return render()
+  if (swallowClick) {
+    swallowClick = false
+    return
   }
+  // A keyboard click elsewhere (no pointer press first) also just closes the menu.
+  if (ui.ctx && !target.closest('.ctx')) return closeCtx()
   const el = target.closest<HTMLElement>('[data-act]')
   if (!el || (el instanceof HTMLButtonElement && el.disabled)) return
   const { act: what = '', key = '', agent = '' } = el.dataset
@@ -199,7 +225,8 @@ root.addEventListener('contextmenu', (event) => {
   ui.ctx = kind ? { kind, key: kind === 'session' ? key : key.slice(2), confirm: false } : null
   ctxAt = { x: event.clientX, y: event.clientY }
   render()
-  root.querySelector<HTMLElement>('.ctx .mi')?.focus()
+  // No scroll: scrolling closes the menu.
+  root.querySelector<HTMLElement>('.ctx .mi')?.focus({ preventScroll: true })
 })
 
 root.addEventListener('input', (event) => {
@@ -211,9 +238,10 @@ root.addEventListener('input', (event) => {
 })
 
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && (ui.ctx || ui.menu)) {
-    if (ui.ctx) ui.ctx = null
-    else ui.menu = null
+  if (event.key === 'Escape' && ui.ctx) {
+    closeCtx()
+  } else if (event.key === 'Escape' && ui.menu) {
+    ui.menu = null
     render()
   } else if (event.key === 'Enter' && event.target instanceof HTMLInputElement && event.target.classList.contains('name')) {
     startWorktree(event.target.dataset.key ?? '', ui.agent)
